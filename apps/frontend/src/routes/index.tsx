@@ -49,6 +49,7 @@ function LandingPage() {
             Quacker is a tiny social network for short messages. Post a quack, read what everyone
             else is up to.
           </p>
+          <h2>Petr Jiranek</h2>
 
           {/* The call to action depends on who is asking: no point offering an
               account to someone who already has one. */}
