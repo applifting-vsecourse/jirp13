@@ -55,4 +55,15 @@ describe("QuackList", () => {
     await userEvent.click(screen.getByRole("button", { name: /reload/i }))
     expect(onReload).toHaveBeenCalledOnce()
   })
+
+  it("shows a search-specific empty state when filtered", () => {
+    render(
+      <QuackList
+        quacks={[]}
+        isFiltered
+      />,
+    )
+
+    expect(screen.getByText("No quacks match your search.")).toBeInTheDocument()
+  })
 })

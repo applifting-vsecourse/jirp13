@@ -11,9 +11,10 @@ type QuackListProps = {
   isLoading?: boolean
   error?: Error
   onReload?: () => void
+  isFiltered?: boolean
 }
 
-export function QuackList({ quacks, isLoading, error, onReload }: QuackListProps) {
+export function QuackList({ quacks, isLoading, error, onReload, isFiltered }: QuackListProps) {
   return (
     <div className="flex flex-col">
       {isLoading && quacks.length === 0 ? (
@@ -46,7 +47,7 @@ export function QuackList({ quacks, isLoading, error, onReload }: QuackListProps
 
       {!isLoading && !error && quacks.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No quacks yet. Post the first one.
+          {isFiltered ? "No quacks match your search." : "No quacks yet. Post the first one."}
         </p>
       ) : null}
 
