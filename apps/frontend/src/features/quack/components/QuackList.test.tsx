@@ -13,6 +13,7 @@ const quack = (overrides: Partial<Quack> = {}): Quack => ({
   userId: "u1",
   createdAt: new Date("2026-01-01T12:00:00Z"),
   user: { id: "u1", name: "Caffeinated Duck", username: "CaffeinatedDuck" },
+  poll: null,
   ...overrides,
 })
 
@@ -23,6 +24,22 @@ describe("QuackList", () => {
     expect(screen.getByText("quack quack")).toBeInTheDocument()
     expect(screen.getByText("Caffeinated Duck")).toBeInTheDocument()
     expect(screen.getByText("@CaffeinatedDuck")).toBeInTheDocument()
+  })
+
+  it("renders the poll of a quack that has one, and none otherwise", () => {
+    const poll = {
+      options: [
+        { id: "o1", text: "West bank", votes: 1 },
+        { id: "o2", text: "The reeds", votes: 0 },
+      ],
+      totalVotes: 1,
+      myVoteOptionId: null,
+    }
+    const { rerender } = render(<QuackList quacks={[quack({ poll })]} />)
+    expect(screen.getByText("West bank")).toBeInTheDocument()
+
+    rerender(<QuackList quacks={[quack()]} />)
+    expect(screen.queryByText("West bank")).not.toBeInTheDocument()
   })
 
   it("shows the mood of a quack that has one", () => {
