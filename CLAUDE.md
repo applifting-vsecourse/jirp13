@@ -26,6 +26,10 @@ Need a control that isn't in `src/components/ui/`? Add it with `pnpm dlx shadcn@
 
 The CLI puts `shadow-xs`/`shadow-sm` on inputs, textareas and cards. [`DESIGN.md`](DESIGN.md) keeps shadows for things that genuinely float — dialogs, dropdowns, toasts. Strip them.
 
+### Rules that must always hold live in the database
+
+If a rule has to be true for everyone no matter what (one vote per person, no duplicate answers, a vote belongs to its own poll), enforce it with a primary key, unique index or foreign key — not only in a service. Services check first so users get a clear error; the database is what makes it impossible to break. Never store a number you can count from rows (vote totals): derive it on read.
+
 ### The app is already running
 
 Assume the dev servers are up. If something is listening on the app's ports, that is this application: use it. Don't start a second instance, don't restart it, don't run `pnpm dev`.
