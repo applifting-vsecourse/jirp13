@@ -28,7 +28,7 @@ The CLI puts `shadow-xs`/`shadow-sm` on inputs, textareas and cards. [`DESIGN.md
 
 ### Rules that must always hold live in the database
 
-If a rule has to be true for everyone no matter what (one vote per person, no duplicate answers, a vote belongs to its own poll), enforce it with a primary key, unique index or foreign key — not only in a service. Services check first so users get a clear error; the database is what makes it impossible to break. Never store a number you can count from rows (vote totals): derive it on read.
+If a rule must always be true (one vote per person), enforce it with a primary key, unique index or foreign key, not only in a service. Never store a number you can count from rows; derive it on read.
 
 ### The app is already running
 
