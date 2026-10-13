@@ -40,7 +40,12 @@ export function QuackItem({ quack }: QuackItemProps) {
           ) : null}
         </div>
         <p className="text-sm break-words whitespace-pre-line">{quack.text}</p>
-        {quack.poll ? <QuackPoll poll={quack.poll} /> : null}
+        {quack.poll ? (
+          <QuackPoll
+            quackId={quack.id}
+            poll={quack.poll}
+          />
+        ) : null}
       </div>
     </article>
   )

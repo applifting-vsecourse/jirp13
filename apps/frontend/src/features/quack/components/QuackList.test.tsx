@@ -1,4 +1,5 @@
 // Example component test — the pattern to copy for your own components.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
@@ -35,10 +36,18 @@ describe("QuackList", () => {
       totalVotes: 1,
       myVoteOptionId: null,
     }
-    const { rerender } = render(<QuackList quacks={[quack({ poll })]} />)
+    const { rerender } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList quacks={[quack({ poll })]} />
+      </QueryClientProvider>,
+    )
     expect(screen.getByText("West bank")).toBeInTheDocument()
 
-    rerender(<QuackList quacks={[quack()]} />)
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList quacks={[quack()]} />
+      </QueryClientProvider>,
+    )
     expect(screen.queryByText("West bank")).not.toBeInTheDocument()
   })
 
