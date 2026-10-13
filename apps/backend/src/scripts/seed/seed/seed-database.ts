@@ -92,6 +92,7 @@ export const seedDatabase = async (
     minutesAgo: number;
     text: string;
     mood?: QuackMood;
+    pollOptions?: string[];
   }[] = [
     {
       author: pondAdmin,
@@ -165,6 +166,12 @@ i fear i may have started something`,
       mood: 'happy',
     },
     {
+      author: breadCritic,
+      minutesAgo: 45,
+      text: `Where do we go for lunch? The west bank, the reeds, or the bridge?`,
+      pollOptions: ['West bank', 'The reeds', 'Under the bridge'],
+    },
+    {
       author: pondAdmin,
       minutesAgo: 20,
       text: `The bread situation has been resolved. The swan has been spoken to.
@@ -174,12 +181,34 @@ Please stop tagging me.`,
 
   const now = Date.now();
 
-  for (const { author, minutesAgo, text, mood } of exampleQuacks) {
-    await createQuack(prisma, {
+  const lunchVoters: [User, number][] = [
+    [caffeinatedDuck, 0],
+    [deepDuckThoughts, 1],
+    [migrationSeason, 0],
+    [pondAdmin, 2],
+  ];
+
+  for (const { author, minutesAgo, text, mood, pollOptions } of exampleQuacks) {
+    const quack = await createQuack(prisma, {
       text,
       mood,
+      pollOptions,
       userId: author.id,
       createdAt: new Date(now - minutesAgo * MINUTE_IN_MS),
     });
+
+    if (pollOptions) {
+      const options = await prisma.pollOption.findMany({
+        where: { quackId: quack.id },
+        orderBy: { position: 'asc' },
+      });
+      await prisma.pollVote.createMany({
+        data: lunchVoters.map(([voter, optionIndex]) => ({
+          quackId: quack.id,
+          userId: voter.id,
+          optionId: options[optionIndex].id,
+        })),
+      });
+    }
   }
 };

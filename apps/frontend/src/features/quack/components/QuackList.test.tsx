@@ -1,4 +1,5 @@
 // Example component test — the pattern to copy for your own components.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
@@ -13,6 +14,7 @@ const quack = (overrides: Partial<Quack> = {}): Quack => ({
   userId: "u1",
   createdAt: new Date("2026-01-01T12:00:00Z"),
   user: { id: "u1", name: "Caffeinated Duck", username: "CaffeinatedDuck" },
+  poll: null,
   ...overrides,
 })
 
@@ -23,6 +25,30 @@ describe("QuackList", () => {
     expect(screen.getByText("quack quack")).toBeInTheDocument()
     expect(screen.getByText("Caffeinated Duck")).toBeInTheDocument()
     expect(screen.getByText("@CaffeinatedDuck")).toBeInTheDocument()
+  })
+
+  it("renders the poll of a quack that has one, and none otherwise", () => {
+    const poll = {
+      options: [
+        { id: "o1", text: "West bank", votes: 1 },
+        { id: "o2", text: "The reeds", votes: 0 },
+      ],
+      totalVotes: 1,
+      myVoteOptionId: null,
+    }
+    const { rerender } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList quacks={[quack({ poll })]} />
+      </QueryClientProvider>,
+    )
+    expect(screen.getByText("West bank")).toBeInTheDocument()
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList quacks={[quack()]} />
+      </QueryClientProvider>,
+    )
+    expect(screen.queryByText("West bank")).not.toBeInTheDocument()
   })
 
   it("shows the mood of a quack that has one", () => {
