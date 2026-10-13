@@ -24,7 +24,7 @@ class PollOptionDto {
   votes!: number;
 }
 
-class PollDto {
+export class PollDto {
   @ApiProperty({ type: [PollOptionDto], description: 'In display order' })
   options!: PollOptionDto[];
 

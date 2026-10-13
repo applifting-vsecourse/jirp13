@@ -1,5 +1,6 @@
 import { PrismaService } from '@/core/prisma/prisma.service';
 import {
+  Prisma,
   PollOption as PrismaPollOption,
   Quack as PrismaQuack,
   User as PrismaUser,
@@ -106,5 +107,60 @@ export class QuackRepository {
       include: { user: true, ...pollInclude(createQuackData.userId) },
     });
     return mapPrismaQuackToDomain(quack);
+  }
+
+  /** Ids of the quack's poll answers; empty when the quack has no poll or does not exist. */
+  async getPollOptionIds(quackId: string): Promise<string[]> {
+    const options = await this.prisma.pollOption.findMany({
+      where: { quackId },
+      select: { id: true },
+    });
+    return options.map((option) => option.id);
+  }
+
+  async getPoll(quackId: string, viewerId: string): Promise<Poll | null> {
+    const quack = await this.prisma.quack.findUnique({
+      where: { id: quackId },
+      include: pollInclude(viewerId),
+    });
+    return quack ? buildPoll(quack) : null;
+  }
+
+  /**
+   * Sets the user's vote on a poll: inserts it, or moves it to another answer.
+   * The primary key (quackId, userId) guarantees a single vote per user.
+   */
+  async setVote(
+    quackId: string,
+    userId: string,
+    optionId: string,
+  ): Promise<void> {
+    const where = { quackId_userId: { quackId, userId } };
+    const write = (): Promise<unknown> =>
+      this.prisma.pollVote.upsert({
+        where,
+        create: { quackId, userId, optionId },
+        update: { optionId },
+      });
+
+    try {
+      await write();
+    } catch (error) {
+      // Two first votes from the same user raced and one hit the primary key.
+      // The row exists now, so running the upsert again takes the update path.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        await write();
+        return;
+      }
+      throw error;
+    }
+  }
+
+  /** Removes the user's vote. Does nothing when they have not voted. */
+  async removeVote(quackId: string, userId: string): Promise<void> {
+    await this.prisma.pollVote.deleteMany({ where: { quackId, userId } });
   }
 }

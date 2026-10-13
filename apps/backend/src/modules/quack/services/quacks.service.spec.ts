@@ -1,9 +1,10 @@
 // Example unit test — the pattern to copy for your own services.
 // The repository is mocked, so the test exercises the service in isolation.
+import { Poll } from '@/modules/quack/domain/poll';
 import { Quack } from '@/modules/quack/domain/quack';
 import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
 import { Identity } from '@/shared/auth/domain/identity';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { mock } from 'jest-mock-extended';
 import { QuacksService } from './quacks.service';
 
@@ -142,6 +143,71 @@ describe('QuacksService', () => {
 
       await expect(result).rejects.toBeInstanceOf(BadRequestException);
       expect(repository.createQuack).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('voting', () => {
+    const poll: Poll = {
+      options: [
+        { id: 'o1', text: 'West bank', votes: 1 },
+        { id: 'o2', text: 'The reeds', votes: 0 },
+      ],
+      totalVotes: 1,
+      myVoteOptionId: 'o1',
+    };
+    const setup = (): {
+      repository: ReturnType<typeof mock<QuackRepository>>;
+      service: QuacksService;
+    } => {
+      const repository = mock<QuackRepository>();
+      repository.getPollOptionIds.mockResolvedValue(['o1', 'o2']);
+      repository.getPoll.mockResolvedValue(poll);
+      return { repository, service: new QuacksService(repository) };
+    };
+
+    it("records the signed-in user's vote and returns the poll", async () => {
+      const { repository, service } = setup();
+
+      await expect(service.vote(viewer, 'q1', 'o1')).resolves.toEqual(poll);
+      // the voter comes from the session, never from the request
+      expect(repository.setVote).toHaveBeenCalledWith('q1', 'u1', 'o1');
+      expect(repository.getPoll).toHaveBeenCalledWith('q1', 'u1');
+    });
+
+    it("rejects an answer that is not part of the quack's poll", async () => {
+      const { repository, service } = setup();
+
+      await expect(service.vote(viewer, 'q1', 'other')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(repository.setVote).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 when voting on a quack without a poll', async () => {
+      const { repository, service } = setup();
+      repository.getPollOptionIds.mockResolvedValue([]);
+
+      await expect(service.vote(viewer, 'q1', 'o1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(repository.setVote).not.toHaveBeenCalled();
+    });
+
+    it('removes the vote and returns the poll', async () => {
+      const { repository, service } = setup();
+
+      await expect(service.removeVote(viewer, 'q1')).resolves.toEqual(poll);
+      expect(repository.removeVote).toHaveBeenCalledWith('q1', 'u1');
+    });
+
+    it('answers 404 when removing a vote on a quack without a poll', async () => {
+      const { repository, service } = setup();
+      repository.getPollOptionIds.mockResolvedValue([]);
+
+      await expect(service.removeVote(viewer, 'q1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(repository.removeVote).not.toHaveBeenCalled();
     });
   });
 });
