@@ -1,5 +1,7 @@
 import { PrismaService } from '@/core/prisma/prisma.service';
-import { Quack, QuackMood } from '@/modules/quack/domain/quack';
+import { Quack } from '@/generated/prisma/client';
+import { pollOptionKey } from '@/modules/quack/domain/poll';
+import { QuackMood } from '@/modules/quack/domain/quack';
 
 type CreateQuackParams = {
   text: string;
@@ -26,7 +28,7 @@ export async function createQuack(
       pollOptions: pollOptions && {
         create: pollOptions.map((optionText, position) => ({
           text: optionText,
-          textKey: optionText.trim().toLowerCase(),
+          textKey: pollOptionKey(optionText),
           position,
         })),
       },

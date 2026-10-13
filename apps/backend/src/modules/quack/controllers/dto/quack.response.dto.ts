@@ -1,3 +1,4 @@
+import { Poll } from '@/modules/quack/domain/poll';
 import { Quack, QUACK_MOODS, QuackMood } from '@/modules/quack/domain/quack';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -10,6 +11,32 @@ class QuackUserDto {
 
   @ApiProperty()
   username!: string;
+}
+
+class PollOptionDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  text!: string;
+
+  @ApiProperty({ description: 'Number of votes for this answer' })
+  votes!: number;
+}
+
+class PollDto {
+  @ApiProperty({ type: [PollOptionDto], description: 'In display order' })
+  options!: PollOptionDto[];
+
+  @ApiProperty()
+  totalVotes!: number;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: "The signed-in user's chosen answer, if any",
+  })
+  myVoteOptionId!: string | null;
 }
 
 export class QuackResponseDto {
@@ -31,6 +58,13 @@ export class QuackResponseDto {
   @ApiProperty({ type: QuackUserDto })
   user!: QuackUserDto;
 
+  @ApiProperty({
+    type: PollDto,
+    nullable: true,
+    description: 'The attached poll, or null when the quack has none',
+  })
+  poll!: Poll | null;
+
   static fromDomain(quack: Quack): QuackResponseDto {
     if (!quack.user) {
       throw new Error(
@@ -48,6 +82,7 @@ export class QuackResponseDto {
         name: quack.user.name,
         username: quack.user.username,
       },
+      poll: quack.poll,
     };
   }
 }
