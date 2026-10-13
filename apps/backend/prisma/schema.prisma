@@ -40,8 +40,49 @@ model Quack {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
+  pollOptions PollOption[]
+  pollVotes   PollVote[]
+
   @@index([userId])
   @@map("quack")
+}
+
+// A quack "has a poll" when it has options. Options are immutable after creation.
+model PollOption {
+  id        String     @id @default(cuid())
+  quack     Quack      @relation(fields: [quackId], references: [id], onDelete: Cascade)
+  quackId   String
+  text      String     @db.VarChar(50)
+  // Normalized text (trimmed, whitespace-collapsed, NFC, lowercased) used only to
+  // reject duplicate answers. Text, not VarChar(50): lowercasing can lengthen a string.
+  textKey   String     @db.Text
+  position  Int
+  votes     PollVote[]
+  createdAt DateTime   @default(now())
+
+  @@unique([quackId, textKey])
+  @@unique([quackId, position])
+  // Target of the composite foreign key from PollVote.
+  @@unique([quackId, id])
+  @@map("poll_option")
+}
+
+// The primary key is what enforces one vote per user per poll. The composite
+// foreign key stops a vote from pointing at another quack's option.
+model PollVote {
+  quack     Quack      @relation(fields: [quackId], references: [id], onDelete: Cascade)
+  quackId   String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  option    PollOption @relation(fields: [quackId, optionId], references: [quackId, id], onDelete: Cascade)
+  optionId  String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@id([quackId, userId])
+  @@index([optionId])
+  @@index([userId])
+  @@map("poll_vote")
 }
 
 model Session {
@@ -103,6 +144,7 @@ model User {
   sessions        Session[]
   accounts        Account[]
   quacks          Quack[]
+  pollVotes       PollVote[]
   role            UserRole  @default(user)
 
   username        String? @db.VarChar(50)
