@@ -16,11 +16,11 @@ import {
 } from "@/components/ui/form"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { moodDisplay } from "@/lib/moods"
 import { cn } from "@/lib/utils"
 
-import { quackMoods, quackMoodSchema } from "@/features/quack/api/quackSchemas"
+import { quackMoods, quackMoodSchema, type QuackMood } from "@/features/quack/api/quackSchemas"
 import { useAddQuack } from "@/features/quack/hooks/useAddQuack"
-import { moodDisplay } from "@/features/quack/lib/moods"
 
 // Mirrors the server-side DTO (MaxLength(280)) so the user is told before
 // the request is made — the server still validates independently.
@@ -37,14 +37,16 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-type QuackFormProps = { className?: string }
+type QuackFormProps = { className?: string; defaultMood?: QuackMood }
 
-export function QuackForm({ className }: QuackFormProps) {
+export function QuackForm({ className, defaultMood }: QuackFormProps) {
   const addQuack = useAddQuack()
   const moodLabelId = useId()
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { text: "", mood: undefined },
+    // The caller passes the user's chosen default mood (set in Settings) so
+    // it pre-selects the picker — they can still change or clear it before posting.
+    defaultValues: { text: "", mood: defaultMood },
   })
 
   const text = useWatch({ control: form.control, name: "text" })
