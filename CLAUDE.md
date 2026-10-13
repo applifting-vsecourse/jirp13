@@ -31,3 +31,11 @@ The CLI puts `shadow-xs`/`shadow-sm` on inputs, textareas and cards. [`DESIGN.md
 Assume the dev servers are up. If something is listening on the app's ports, that is this application: use it. Don't start a second instance, don't restart it, don't run `pnpm dev`.
 
 Don't reach for the browser to check your own work. Tests and type-checks are the evidence; open the running app when asked to, not on your own initiative.
+
+### The application is in English
+
+All user-facing text — UI copy, labels, error/empty-state messages, seed data, commit messages, docs — is English, regardless of the language the request comes in. Don't localize or add i18n scaffolding unless asked.
+
+### User stories follow a fixed structure
+
+When asked to write a user story, use the structure from [`docs/stories/search-quacks.md`](docs/stories/search-quacks.md) as the template: `Story`, `Why`, `Scope`, `UI placement` (when relevant), `Out of scope`, `Acceptance criteria`. Ask questions until every section can be written with no open decisions — don't fill gaps with assumptions.
