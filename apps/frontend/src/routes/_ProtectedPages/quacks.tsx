@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
 import { Seo } from "@/components/Seo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDebouncedValue } from "@/hooks/useDebouncedValue"
 
 import { useSession } from "@/features/auth/hooks/useSession"
@@ -29,7 +30,11 @@ function QuacksPage() {
       ? debouncedSearchInput.trim()
       : undefined
 
-  const quacksQuery = useQuery(quacksQueryOptions(search))
+  const [tab, setTab] = useState<"all" | "mine">("all")
+  const isMineOnly = tab === "mine"
+  const formRef = useRef<HTMLDivElement>(null)
+
+  const quacksQuery = useQuery(quacksQueryOptions(search, isMineOnly))
 
   return (
     <>
@@ -37,10 +42,23 @@ function QuacksPage() {
       <section className="mx-auto w-full max-w-2xl px-4 py-8">
         <h1 className="mb-4 text-2xl font-semibold tracking-tight">Quacks</h1>
 
-        <QuackForm
+        <div ref={formRef}>
+          <QuackForm
+            className="mb-4"
+            defaultMood={user?.defaultMood ?? undefined}
+          />
+        </div>
+
+        <Tabs
+          value={tab}
+          onValueChange={(value) => setTab(value === "mine" ? "mine" : "all")}
           className="mb-4"
-          defaultMood={user?.defaultMood ?? undefined}
-        />
+        >
+          <TabsList variant="line">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="mine">Mine</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <div className="mb-4">
           <Label
@@ -63,6 +81,9 @@ function QuacksPage() {
           isLoading={quacksQuery.isLoading}
           error={quacksQuery.error ?? undefined}
           isFiltered={search !== undefined}
+          currentUserId={user?.id}
+          isMineOnly={isMineOnly}
+          onWriteFirst={() => formRef.current?.querySelector("textarea")?.focus()}
           // Only the error state offers a retry — posting invalidates the list,
           // and refocusing the tab refetches it.
           onReload={() => void quacksQuery.refetch()}

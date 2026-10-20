@@ -4,7 +4,11 @@ import { Poll } from '@/modules/quack/domain/poll';
 import { Quack } from '@/modules/quack/domain/quack';
 import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
 import { Identity } from '@/shared/auth/domain/identity';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { mock } from 'jest-mock-extended';
 import { QuacksService } from './quacks.service';
 
@@ -31,7 +35,11 @@ describe('QuacksService', () => {
     const service = new QuacksService(repository);
 
     await expect(service.getQuacks(viewer)).resolves.toEqual(quacks);
-    expect(repository.getQuacks).toHaveBeenCalledWith('u1', undefined);
+    expect(repository.getQuacks).toHaveBeenCalledWith(
+      'u1',
+      undefined,
+      undefined,
+    );
   });
 
   it('passes the search term through to the repository', async () => {
@@ -42,7 +50,7 @@ describe('QuacksService', () => {
     const service = new QuacksService(repository);
 
     await expect(service.getQuacks(viewer, 'quack')).resolves.toEqual(quacks);
-    expect(repository.getQuacks).toHaveBeenCalledWith('u1', 'quack');
+    expect(repository.getQuacks).toHaveBeenCalledWith('u1', 'quack', undefined);
   });
 
   it('creates a quack owned by the signed-in user', async () => {
@@ -208,6 +216,39 @@ describe('QuacksService', () => {
         NotFoundException,
       );
       expect(repository.removeVote).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteQuack', () => {
+    it('deletes the quack of its author', async () => {
+      const repository = mock<QuackRepository>();
+      repository.getAuthorId.mockResolvedValue('u1');
+      const service = new QuacksService(repository);
+
+      await service.deleteQuack(viewer, 'q1');
+
+      expect(repository.deleteQuack).toHaveBeenCalledWith('q1', 'u1');
+    });
+
+    it("refuses to delete someone else's quack", async () => {
+      const repository = mock<QuackRepository>();
+      repository.getAuthorId.mockResolvedValue('u2');
+      const service = new QuacksService(repository);
+
+      await expect(service.deleteQuack(viewer, 'q1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(repository.deleteQuack).not.toHaveBeenCalled();
+    });
+
+    it('reports a missing quack', async () => {
+      const repository = mock<QuackRepository>();
+      repository.getAuthorId.mockResolvedValue(null);
+      const service = new QuacksService(repository);
+
+      await expect(service.deleteQuack(viewer, 'nope')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 });
