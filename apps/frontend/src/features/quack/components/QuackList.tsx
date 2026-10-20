@@ -12,9 +12,26 @@ type QuackListProps = {
   error?: Error
   onReload?: () => void
   isFiltered?: boolean
+  // Id of the signed-in user; their quacks get a Delete action.
+  currentUserId?: string
+  // Moderators (admins) may delete any quack, not only their own.
+  isModerator?: boolean
+  // Set on the "Mine" tab: the empty state then offers to write a first quack.
+  isMineOnly?: boolean
+  onWriteFirst?: () => void
 }
 
-export function QuackList({ quacks, isLoading, error, onReload, isFiltered }: QuackListProps) {
+export function QuackList({
+  quacks,
+  isLoading,
+  error,
+  onReload,
+  isFiltered,
+  currentUserId,
+  isModerator,
+  isMineOnly,
+  onWriteFirst,
+}: QuackListProps) {
   return (
     <div className="flex flex-col">
       {isLoading && quacks.length === 0 ? (
@@ -46,15 +63,34 @@ export function QuackList({ quacks, isLoading, error, onReload, isFiltered }: Qu
       ) : null}
 
       {!isLoading && !error && quacks.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {isFiltered ? "No quacks match your search." : "No quacks yet. Post the first one."}
-        </p>
+        <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
+          <p>
+            {isFiltered
+              ? "No quacks match your search."
+              : isMineOnly
+                ? "You haven't posted any quacks yet."
+                : "No quacks yet. Post the first one."}
+          </p>
+          {isMineOnly && !isFiltered && onWriteFirst ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onWriteFirst}
+            >
+              Write your first quack
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
       {quacks.map((quack) => (
         <QuackItem
           key={quack.id}
           quack={quack}
+          isOwn={currentUserId !== undefined && quack.userId === currentUserId}
+          canDelete={
+            isModerator === true || (currentUserId !== undefined && quack.userId === currentUserId)
+          }
         />
       ))}
     </div>

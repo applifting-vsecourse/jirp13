@@ -66,19 +66,28 @@ const pollInclude = (viewerId: string) =>
 export class QuackRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getQuacks(viewerId: string, search?: string): Promise<Quack[]> {
+  async getQuacks(
+    viewerId: string,
+    search?: string,
+    onlyMine?: boolean,
+  ): Promise<Quack[]> {
     const quacks = await this.prisma.quack.findMany({
-      where: search
-        ? {
-            OR: [
-              { text: { contains: search, mode: 'insensitive' } },
-              { user: { name: { contains: search, mode: 'insensitive' } } },
-              {
-                user: { username: { contains: search, mode: 'insensitive' } },
-              },
-            ],
-          }
-        : undefined,
+      where: {
+        ...(onlyMine ? { userId: viewerId } : {}),
+        ...(search
+          ? {
+              OR: [
+                { text: { contains: search, mode: 'insensitive' } },
+                { user: { name: { contains: search, mode: 'insensitive' } } },
+                {
+                  user: {
+                    username: { contains: search, mode: 'insensitive' },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
       include: { user: true, ...pollInclude(viewerId) },
       orderBy: { createdAt: 'desc' },
     });
@@ -107,6 +116,25 @@ export class QuackRepository {
       include: { user: true, ...pollInclude(createQuackData.userId) },
     });
     return mapPrismaQuackToDomain(quack);
+  }
+
+  /** Id of the quack's author, or null when the quack does not exist. */
+  async getAuthorId(quackId: string): Promise<string | null> {
+    const quack = await this.prisma.quack.findUnique({
+      where: { id: quackId },
+      select: { userId: true },
+    });
+    return quack?.userId ?? null;
+  }
+
+  /**
+   * Deletes the quack; options and votes cascade. With `authorId` it deletes
+   * only if that user wrote it, without it the author is not checked.
+   */
+  async deleteQuack(quackId: string, authorId?: string): Promise<void> {
+    await this.prisma.quack.deleteMany({
+      where: { id: quackId, userId: authorId },
+    });
   }
 
   /** Ids of the quack's poll answers; empty when the quack has no poll or does not exist. */

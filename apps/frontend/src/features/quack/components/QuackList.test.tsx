@@ -92,4 +92,65 @@ describe("QuackList", () => {
 
     expect(screen.getByText("No quacks match your search.")).toBeInTheDocument()
   })
+  it("offers Delete only on the signed-in user's own quacks", () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList
+          currentUserId="u1"
+          quacks={[
+            quack({ id: "q1", text: "mine" }),
+            quack({ id: "q2", userId: "u2", text: "theirs" }),
+          ]}
+        />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getAllByRole("button", { name: /delete/i })).toHaveLength(1)
+  })
+
+  it("offers a moderator Delete on every quack and says when it is not theirs", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList
+          currentUserId="admin1"
+          isModerator
+          quacks={[quack({ id: "q1" }), quack({ id: "q2", userId: "u2" })]}
+        />
+      </QueryClientProvider>,
+    )
+
+    const buttons = screen.getAllByRole("button", { name: /delete/i })
+    expect(buttons).toHaveLength(2)
+    await userEvent.click(buttons[0]!)
+    expect(screen.getByText(/posted by someone else/i)).toBeInTheDocument()
+  })
+
+  it("asks for confirmation before deleting", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList
+          currentUserId="u1"
+          quacks={[quack()]}
+        />
+      </QueryClientProvider>,
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /delete/i }))
+    expect(screen.getByText("Delete this quack?")).toBeInTheDocument()
+  })
+
+  it("offers to write the first quack on an empty Mine tab", async () => {
+    const onWriteFirst = vi.fn()
+    render(
+      <QuackList
+        quacks={[]}
+        isMineOnly
+        onWriteFirst={onWriteFirst}
+      />,
+    )
+
+    expect(screen.getByText("You haven't posted any quacks yet.")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: /write your first quack/i }))
+    expect(onWriteFirst).toHaveBeenCalledOnce()
+  })
 })

@@ -2,14 +2,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { formatDate } from "@/lib/date"
 
 import type { Quack } from "@/features/quack/api/quackSchemas"
+import { DeleteQuackButton } from "@/features/quack/components/DeleteQuackButton"
 import { QuackMoodLabel } from "@/features/quack/components/QuackMoodLabel"
 import { QuackPoll } from "@/features/quack/components/QuackPoll"
 import { UsersName } from "@/features/quack/components/UsersName"
 import { UsersUserName } from "@/features/quack/components/UsersUserName"
 
-type QuackItemProps = { quack: Quack }
+type QuackItemProps = { quack: Quack; isOwn?: boolean; canDelete?: boolean }
 
-export function QuackItem({ quack }: QuackItemProps) {
+export function QuackItem({ quack, isOwn, canDelete }: QuackItemProps) {
   const { name, username } = quack.user
 
   const initials = name
@@ -44,6 +45,12 @@ export function QuackItem({ quack }: QuackItemProps) {
           <QuackPoll
             quackId={quack.id}
             poll={quack.poll}
+          />
+        ) : null}
+        {canDelete ? (
+          <DeleteQuackButton
+            quackId={quack.id}
+            isOwn={isOwn}
           />
         ) : null}
       </div>

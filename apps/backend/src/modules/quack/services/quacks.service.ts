@@ -9,6 +9,7 @@ import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
 import { Identity } from '@/shared/auth/domain/identity';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,9 +18,13 @@ import {
 export class QuacksService {
   constructor(private readonly quackRepository: QuackRepository) {}
 
-  async getQuacks(user: Identity, search?: string): Promise<Quack[]> {
+  async getQuacks(
+    user: Identity,
+    search?: string,
+    onlyMine?: boolean,
+  ): Promise<Quack[]> {
     // the viewer is needed so each poll can report which answer they picked
-    return this.quackRepository.getQuacks(user.id, search);
+    return this.quackRepository.getQuacks(user.id, search, onlyMine);
   }
 
   async createQuack(
@@ -33,6 +38,22 @@ export class QuacksService {
       // the author is taken from the session, never from the request body
       userId: user.id,
     });
+  }
+
+  async deleteQuack(user: Identity, quackId: string): Promise<void> {
+    const authorId = await this.quackRepository.getAuthorId(quackId);
+    if (authorId === null) throw new NotFoundException('Quack not found');
+    // Only the author or a moderator (admin) may delete a quack
+    const isModerator = user.role === 'admin';
+    if (authorId !== user.id && !isModerator) {
+      throw new ForbiddenException('You can only delete your own quacks');
+    }
+    // for non-moderators the repository re-checks the author, so a race
+    // cannot delete someone else's quack
+    await this.quackRepository.deleteQuack(
+      quackId,
+      isModerator ? undefined : user.id,
+    );
   }
 
   /** Sets (or changes) the user's vote. Safe to repeat. */

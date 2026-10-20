@@ -50,7 +50,11 @@ export class QuacksController {
     @User() user: Identity,
     @Query() query: ListQuacksDto,
   ): Promise<QuackResponseDto[]> {
-    const quacks = await this.quacksService.getQuacks(user, query.search);
+    const quacks = await this.quacksService.getQuacks(
+      user,
+      query.search,
+      query.mine,
+    );
     return quacks.map(QuackResponseDto.fromDomain);
   }
 
@@ -70,6 +74,20 @@ export class QuacksController {
       pollOptions: body.pollOptions,
     });
     return QuackResponseDto.fromDomain(quack);
+  }
+
+  @Delete(':quackId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete one of your own quacks' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Not signed in' })
+  @ApiResponse({ status: 403, description: 'Quack belongs to someone else' })
+  @ApiResponse({ status: 404, description: 'Quack not found' })
+  async remove(
+    @User() user: Identity,
+    @Param('quackId') quackId: string,
+  ): Promise<void> {
+    await this.quacksService.deleteQuack(user, quackId);
   }
 
   @Put(':quackId/vote')
