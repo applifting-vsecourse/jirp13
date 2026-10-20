@@ -127,9 +127,14 @@ export class QuackRepository {
     return quack?.userId ?? null;
   }
 
-  /** Deletes the quack only if the user wrote it; options and votes cascade. */
-  async deleteQuack(quackId: string, userId: string): Promise<void> {
-    await this.prisma.quack.deleteMany({ where: { id: quackId, userId } });
+  /**
+   * Deletes the quack; options and votes cascade. With `authorId` it deletes
+   * only if that user wrote it, without it the author is not checked.
+   */
+  async deleteQuack(quackId: string, authorId?: string): Promise<void> {
+    await this.prisma.quack.deleteMany({
+      where: { id: quackId, userId: authorId },
+    });
   }
 
   /** Ids of the quack's poll answers; empty when the quack has no poll or does not exist. */

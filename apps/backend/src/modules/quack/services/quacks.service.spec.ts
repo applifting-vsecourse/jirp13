@@ -24,7 +24,7 @@ const aQuack = (overrides: Partial<Quack> = {}): Quack => ({
   ...overrides,
 });
 
-const viewer = { id: 'u1' } as Identity;
+const viewer = { id: 'u1', role: 'user' } as Identity;
 
 describe('QuacksService', () => {
   it('returns quacks from the repository', async () => {
@@ -239,6 +239,17 @@ describe('QuacksService', () => {
         ForbiddenException,
       );
       expect(repository.deleteQuack).not.toHaveBeenCalled();
+    });
+
+    it("lets an admin delete someone else's quack", async () => {
+      const repository = mock<QuackRepository>();
+      repository.getAuthorId.mockResolvedValue('u2');
+      const service = new QuacksService(repository);
+      const admin = { id: 'admin1', role: 'admin' } as Identity;
+
+      await service.deleteQuack(admin, 'q1');
+
+      expect(repository.deleteQuack).toHaveBeenCalledWith('q1', undefined);
     });
 
     it('reports a missing quack', async () => {

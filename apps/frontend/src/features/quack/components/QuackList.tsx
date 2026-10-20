@@ -14,6 +14,8 @@ type QuackListProps = {
   isFiltered?: boolean
   // Id of the signed-in user; their quacks get a Delete action.
   currentUserId?: string
+  // Moderators (admins) may delete any quack, not only their own.
+  isModerator?: boolean
   // Set on the "Mine" tab: the empty state then offers to write a first quack.
   isMineOnly?: boolean
   onWriteFirst?: () => void
@@ -26,6 +28,7 @@ export function QuackList({
   onReload,
   isFiltered,
   currentUserId,
+  isModerator,
   isMineOnly,
   onWriteFirst,
 }: QuackListProps) {
@@ -85,6 +88,9 @@ export function QuackList({
           key={quack.id}
           quack={quack}
           isOwn={currentUserId !== undefined && quack.userId === currentUserId}
+          canDelete={
+            isModerator === true || (currentUserId !== undefined && quack.userId === currentUserId)
+          }
         />
       ))}
     </div>

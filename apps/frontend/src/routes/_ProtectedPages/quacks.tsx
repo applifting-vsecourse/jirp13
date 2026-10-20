@@ -82,6 +82,7 @@ function QuacksPage() {
           error={quacksQuery.error ?? undefined}
           isFiltered={search !== undefined}
           currentUserId={user?.id}
+          isModerator={user?.role === "admin"}
           isMineOnly={isMineOnly}
           onWriteFirst={() => formRef.current?.querySelector("textarea")?.focus()}
           // Only the error state offers a retry — posting invalidates the list,

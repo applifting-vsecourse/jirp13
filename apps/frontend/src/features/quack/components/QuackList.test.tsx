@@ -108,6 +108,23 @@ describe("QuackList", () => {
     expect(screen.getAllByRole("button", { name: /delete/i })).toHaveLength(1)
   })
 
+  it("offers a moderator Delete on every quack and says when it is not theirs", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <QuackList
+          currentUserId="admin1"
+          isModerator
+          quacks={[quack({ id: "q1" }), quack({ id: "q2", userId: "u2" })]}
+        />
+      </QueryClientProvider>,
+    )
+
+    const buttons = screen.getAllByRole("button", { name: /delete/i })
+    expect(buttons).toHaveLength(2)
+    await userEvent.click(buttons[0]!)
+    expect(screen.getByText(/posted by someone else/i)).toBeInTheDocument()
+  })
+
   it("asks for confirmation before deleting", async () => {
     render(
       <QueryClientProvider client={new QueryClient()}>

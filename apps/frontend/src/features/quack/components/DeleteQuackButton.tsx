@@ -14,7 +14,14 @@ import {
 
 import { useDeleteQuack } from "@/features/quack/hooks/useDeleteQuack"
 
-export function DeleteQuackButton({ quackId }: { quackId: string }) {
+export function DeleteQuackButton({
+  quackId,
+  isOwn = true,
+}: {
+  quackId: string
+  // false when a moderator deletes someone else's quack
+  isOwn?: boolean
+}) {
   const [isOpen, setOpen] = useState(false)
   const deleteQuack = useDeleteQuack()
 
@@ -37,7 +44,9 @@ export function DeleteQuackButton({ quackId }: { quackId: string }) {
         <DialogHeader>
           <DialogTitle>Delete this quack?</DialogTitle>
           <DialogDescription>
-            It will be removed from the feed for everyone. This can&apos;t be undone.
+            {isOwn
+              ? "It will be removed from the feed for everyone. This can't be undone."
+              : "This quack was posted by someone else. Deleting it removes it for everyone and can't be undone."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

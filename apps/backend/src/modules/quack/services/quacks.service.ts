@@ -43,11 +43,17 @@ export class QuacksService {
   async deleteQuack(user: Identity, quackId: string): Promise<void> {
     const authorId = await this.quackRepository.getAuthorId(quackId);
     if (authorId === null) throw new NotFoundException('Quack not found');
-    if (authorId !== user.id) {
+    // Only the author or a moderator (admin) may delete a quack
+    const isModerator = user.role === 'admin';
+    if (authorId !== user.id && !isModerator) {
       throw new ForbiddenException('You can only delete your own quacks');
     }
-    // the repository re-checks the author, so a race cannot delete another's quack
-    await this.quackRepository.deleteQuack(quackId, user.id);
+    // for non-moderators the repository re-checks the author, so a race
+    // cannot delete someone else's quack
+    await this.quackRepository.deleteQuack(
+      quackId,
+      isModerator ? undefined : user.id,
+    );
   }
 
   /** Sets (or changes) the user's vote. Safe to repeat. */
