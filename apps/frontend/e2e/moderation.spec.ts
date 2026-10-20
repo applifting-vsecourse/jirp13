@@ -79,6 +79,12 @@ test.describe("deleting quacks", () => {
     const admin = await signedInPage(browser, "admin")
     await admin.goto("/quacks")
     const card = quackCard(admin, text)
+    await expect(card).toBeVisible()
+    // the admin sees Delete on every quack in the feed, not only this one
+    const articles = admin.locator("article")
+    await expect(articles.getByRole("button", { name: "Delete" })).toHaveCount(
+      await articles.count(),
+    )
     await card.getByRole("button", { name: "Delete" }).click()
     await expect(admin.getByRole("dialog").getByText(/posted by someone else/i)).toBeVisible()
     await admin.getByRole("dialog").getByRole("button", { name: "Delete" }).click()
