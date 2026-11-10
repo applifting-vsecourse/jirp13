@@ -26,6 +26,8 @@ describe("QuackForm", () => {
       createdAt: new Date(),
       user: { id: "u1", name: "Caffeinated Duck", username: "CaffeinatedDuck" },
       poll: null,
+      deleted: false,
+      replies: [],
     })
   })
 

@@ -1,6 +1,7 @@
 import { PrismaService } from '@/core/prisma/prisma.service';
-import { User } from '@/generated/prisma/client';
+import { Quack, User } from '@/generated/prisma/client';
 import { QuackMood } from '@/modules/quack/domain/quack';
+import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
 import { BetterAuth } from '@/shared/auth/providers/better-auth.provider';
 import { Config } from '@/shared/config/config.service';
 import { createQuack } from './create-quack';
@@ -188,6 +189,8 @@ Please stop tagging me.`,
     [pondAdmin, 2],
   ];
 
+  const createdQuacks = new Map<string, Quack>();
+
   for (const { author, minutesAgo, text, mood, pollOptions } of exampleQuacks) {
     const quack = await createQuack(prisma, {
       text,
@@ -196,6 +199,8 @@ Please stop tagging me.`,
       userId: author.id,
       createdAt: new Date(now - minutesAgo * MINUTE_IN_MS),
     });
+
+    createdQuacks.set(text, quack);
 
     if (pollOptions) {
       const options = await prisma.pollOption.findMany({
@@ -211,4 +216,92 @@ Please stop tagging me.`,
       });
     }
   }
+
+  console.log('Creating example replies');
+
+  const quackStartingWith = (start: string): Quack => {
+    const quack = [...createdQuacks.entries()].find(([text]) =>
+      text.startsWith(start),
+    )?.[1];
+    if (!quack)
+      throw new Error(`Seed quack starting with "${start}" not found`);
+    return quack;
+  };
+
+  const exampleReplies: {
+    parent: Quack;
+    author: User;
+    minutesAgo: number;
+    text: string;
+  }[] = [
+    {
+      parent: quackStartingWith('just spilled coffee'),
+      author: deepDuckThoughts,
+      minutesAgo: 1900,
+      text: 'Is the keyboard wrong, or is it simply the most honest it has ever been?',
+    },
+    {
+      parent: quackStartingWith('just spilled coffee'),
+      author: breadCritic,
+      minutesAgo: 1850,
+      text: 'Rice will not save it. Toast might. 7/10 as a keyboard.',
+    },
+    {
+      parent: quackStartingWith('Update on the shortcut'),
+      author: pondAdmin,
+      minutesAgo: 1180,
+      text: 'Noted. The front of the V has been informed.',
+    },
+    {
+      parent: quackStartingWith('third espresso'),
+      author: migrationSeason,
+      minutesAgo: 600,
+      text: 'Which colour is quacking? Asking for the whole formation.',
+    },
+    {
+      parent: quackStartingWith('third espresso'),
+      author: caffeinatedDuck,
+      minutesAgo: 580,
+      text: 'teal. definitely teal',
+    },
+    {
+      parent: quackStartingWith('Where do we go for lunch'),
+      author: caffeinatedDuck,
+      minutesAgo: 30,
+      text: 'Reeds, but only if nobody brings the sourdough.',
+    },
+  ];
+
+  for (const { parent, author, minutesAgo, text } of exampleReplies) {
+    await createQuack(prisma, {
+      text,
+      userId: author.id,
+      parentId: parent.id,
+      createdAt: new Date(now - minutesAgo * MINUTE_IN_MS),
+    });
+  }
+
+  // A quack its author deleted after people replied: only the replies are left.
+  // Created the way the app does it, so the seed shows a real placeholder.
+  const regretted = await createQuack(prisma, {
+    text: 'Hot take: the pond is just a very large puddle.',
+    userId: deepDuckThoughts.id,
+    createdAt: new Date(now - 160 * MINUTE_IN_MS),
+  });
+  await createQuack(prisma, {
+    text: 'Bold of you to say this in front of the pond.',
+    userId: pondAdmin.id,
+    parentId: regretted.id,
+    createdAt: new Date(now - 150 * MINUTE_IN_MS),
+  });
+  await createQuack(prisma, {
+    text: 'I screenshotted it. For the record.',
+    userId: breadCritic.id,
+    parentId: regretted.id,
+    createdAt: new Date(now - 140 * MINUTE_IN_MS),
+  });
+  await new QuackRepository(prisma).deleteQuack(
+    regretted.id,
+    deepDuckThoughts.id,
+  );
 };

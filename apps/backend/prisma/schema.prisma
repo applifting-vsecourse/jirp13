@@ -31,12 +31,23 @@ enum QuackMood {
   @@map("quack_mood")
 }
 
+// Replies are quacks with a parent (one level deep). A quack that is deleted
+// while it still has replies stays as a placeholder with no content; see
+// docs/adr/0001-replies-as-quacks-with-placeholders.md. CHECK constraints
+// (not expressible here) live in the replies migration.
 model Quack {
   id        String     @id @default(cuid())
-  text      String     @db.Text
+  // null only on a placeholder (deletedAt is set)
+  text      String?    @db.Text
   mood      QuackMood?
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
+  // null only on a placeholder
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  // set when this quack is a reply
+  parent    Quack?     @relation("QuackReplies", fields: [parentId], references: [id], onDelete: Restrict)
+  parentId  String?
+  replies   Quack[]    @relation("QuackReplies")
+  deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
@@ -44,6 +55,7 @@ model Quack {
   pollVotes   PollVote[]
 
   @@index([userId])
+  @@index([parentId, createdAt])
   @@map("quack")
 }
 

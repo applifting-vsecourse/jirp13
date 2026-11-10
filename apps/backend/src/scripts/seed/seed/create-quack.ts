@@ -9,6 +9,8 @@ type CreateQuackParams = {
   mood?: QuackMood;
   // Answers for an attached poll, in display order. Omit for a plain quack.
   pollOptions?: string[];
+  // Makes the quack a reply to this top-level quack. Replies are text only.
+  parentId?: string;
   // Optional so the seed can spread posts over time. Without it every seeded
   // quack shares one timestamp and the feed reads like a single burst.
   createdAt?: Date;
@@ -18,13 +20,14 @@ export async function createQuack(
   prisma: PrismaService,
   params: CreateQuackParams,
 ): Promise<Quack> {
-  const { text, userId, mood, createdAt, pollOptions } = params;
+  const { text, userId, mood, createdAt, pollOptions, parentId } = params;
 
   return await prisma.quack.create({
     data: {
       text,
       mood,
       createdAt,
+      parent: parentId ? { connect: { id: parentId } } : undefined,
       pollOptions: pollOptions && {
         create: pollOptions.map((optionText, position) => ({
           text: optionText,

@@ -40,12 +40,36 @@ export class QuacksService {
     });
   }
 
+  async createReply(
+    user: Identity,
+    parentId: string,
+    text: string,
+  ): Promise<Quack> {
+    const parent = await this.quackRepository.getTarget(parentId);
+    if (parent === null) throw new NotFoundException('Quack not found');
+    // replies are one level deep
+    if (parent.parentId !== null) {
+      throw new BadRequestException('You can’t reply to a reply');
+    }
+    const reply = await this.quackRepository.createReply({
+      text,
+      // the author is taken from the session, never from the request body
+      userId: user.id,
+      parentId,
+    });
+    if (reply === null) throw new NotFoundException('Quack not found');
+    return reply;
+  }
+
   async deleteQuack(user: Identity, quackId: string): Promise<void> {
-    const authorId = await this.quackRepository.getAuthorId(quackId);
-    if (authorId === null) throw new NotFoundException('Quack not found');
-    // Only the author or a moderator (admin) may delete a quack
+    const target = await this.quackRepository.getTarget(quackId);
+    // a placeholder has nothing left to delete
+    if (target === null || target.deleted) {
+      throw new NotFoundException('Quack not found');
+    }
+    // Only the author or a moderator (admin) may delete a quack or reply
     const isModerator = user.role === 'admin';
-    if (authorId !== user.id && !isModerator) {
+    if (target.userId !== user.id && !isModerator) {
       throw new ForbiddenException('You can only delete your own quacks');
     }
     // for non-moderators the repository re-checks the author, so a race

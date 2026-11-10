@@ -43,3 +43,7 @@ All user-facing text — UI copy, labels, error/empty-state messages, seed data,
 ### User stories follow a fixed structure
 
 When asked to write a user story, use the structure from [`docs/stories/search-quacks.md`](docs/stories/search-quacks.md) as the template: `Story`, `Why`, `Scope`, `UI placement` (when relevant), `Out of scope`, `Acceptance criteria`. Ask questions until every section can be written with no open decisions — don't fill gaps with assumptions.
+
+### Check the ADR index before structural changes
+
+Before changing the data model or the structure of the app, check the index in [`docs/adr/README.md`](docs/adr/README.md).
