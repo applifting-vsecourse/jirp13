@@ -87,6 +87,8 @@ export function QuackList({
         <QuackItem
           key={quack.id}
           quack={quack}
+          currentUserId={currentUserId}
+          isModerator={isModerator}
           isOwn={currentUserId !== undefined && quack.userId === currentUserId}
           canDelete={
             isModerator === true || (currentUserId !== undefined && quack.userId === currentUserId)

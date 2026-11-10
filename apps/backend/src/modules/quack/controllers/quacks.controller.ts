@@ -24,8 +24,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CreateQuackDto } from './dto/create-quack.dto';
+import { CreateReplyDto } from './dto/create-reply.dto';
 import { ListQuacksDto } from './dto/list-quacks.dto';
-import { PollDto, QuackResponseDto } from './dto/quack.response.dto';
+import {
+  PollDto,
+  QuackResponseDto,
+  ReplyResponseDto,
+} from './dto/quack.response.dto';
 import { VoteDto } from './dto/vote.dto';
 
 @ApiTags('quacks')
@@ -76,9 +81,40 @@ export class QuacksController {
     return QuackResponseDto.fromDomain(quack);
   }
 
+  @Post(':quackId/replies')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Reply to a quack',
+    description:
+      'Replies are text only and one level deep. A quack that was deleted but still has replies can be replied to.',
+  })
+  @ApiResponse({ status: 201, type: ReplyResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid text, or the target is itself a reply',
+  })
+  @ApiResponse({ status: 401, description: 'Not signed in' })
+  @ApiResponse({ status: 404, description: 'Quack not found' })
+  async reply(
+    @User() user: Identity,
+    @Param('quackId') quackId: string,
+    @Body() body: CreateReplyDto,
+  ): Promise<ReplyResponseDto> {
+    const reply = await this.quacksService.createReply(
+      user,
+      quackId,
+      body.text,
+    );
+    return ReplyResponseDto.fromDomain(reply);
+  }
+
   @Delete(':quackId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete one of your own quacks' })
+  @ApiOperation({
+    summary: 'Delete a quack or reply (author or admin)',
+    description:
+      'A quack that still has replies is kept as a content-free placeholder so the replies survive; otherwise it is removed.',
+  })
   @ApiResponse({ status: 204, description: 'Deleted' })
   @ApiResponse({ status: 401, description: 'Not signed in' })
   @ApiResponse({ status: 403, description: 'Quack belongs to someone else' })

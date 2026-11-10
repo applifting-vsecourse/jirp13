@@ -31,6 +31,8 @@ const quackWith = (value: Poll): Quack => ({
   createdAt: new Date("2026-01-01T12:00:00Z"),
   user: { id: "u1", name: "Caffeinated Duck", username: "CaffeinatedDuck" },
   poll: value,
+  deleted: false,
+  replies: [],
 })
 
 // Renders the poll the way the feed does: from the cached quack list, so an

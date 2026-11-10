@@ -1,10 +1,10 @@
 // Example component test — the pattern to copy for your own components.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
-import type { Quack } from "@/features/quack/api/quackSchemas"
+import type { Quack, Reply } from "@/features/quack/api/quackSchemas"
 import { QuackList } from "@/features/quack/components/QuackList"
 
 const quack = (overrides: Partial<Quack> = {}): Quack => ({
@@ -15,8 +15,23 @@ const quack = (overrides: Partial<Quack> = {}): Quack => ({
   createdAt: new Date("2026-01-01T12:00:00Z"),
   user: { id: "u1", name: "Caffeinated Duck", username: "CaffeinatedDuck" },
   poll: null,
+  deleted: false,
+  replies: [],
   ...overrides,
 })
+
+const reply = (overrides: Partial<Reply> = {}): Reply => ({
+  id: "r1",
+  text: "me too",
+  userId: "u2",
+  createdAt: new Date("2026-01-01T12:30:00Z"),
+  user: { id: "u2", name: "Deep Duck", username: "DeepDuck" },
+  ...overrides,
+})
+
+const withClient = (ui: React.ReactElement) => (
+  <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>
+)
 
 describe("QuackList", () => {
   it("renders quacks with author info", () => {
@@ -152,5 +167,169 @@ describe("QuackList", () => {
     expect(screen.getByText("You haven't posted any quacks yet.")).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: /write your first quack/i }))
     expect(onWriteFirst).toHaveBeenCalledOnce()
+  })
+
+  describe("replies", () => {
+    it("lists replies under their quack, in the order given", () => {
+      render(
+        <QuackList
+          quacks={[
+            quack({
+              replies: [
+                reply({ id: "r1", text: "first reply" }),
+                reply({ id: "r2", text: "second reply" }),
+              ],
+            }),
+          ]}
+        />,
+      )
+
+      const replies = within(screen.getByRole("list", { name: "Replies" })).getAllByRole("listitem")
+      expect(replies.map((item) => item.textContent)).toEqual([
+        expect.stringContaining("first reply"),
+        expect.stringContaining("second reply"),
+      ])
+      expect(screen.getAllByText("Deep Duck")).toHaveLength(2)
+    })
+
+    it("shows no replies list for a quack without replies", () => {
+      render(<QuackList quacks={[quack()]} />)
+
+      expect(screen.queryByRole("list", { name: "Replies" })).not.toBeInTheDocument()
+    })
+
+    it("offers Reply to a signed-in user, but not on the replies themselves", () => {
+      render(
+        withClient(
+          <QuackList
+            currentUserId="u1"
+            quacks={[quack({ replies: [reply()] })]}
+          />,
+        ),
+      )
+
+      // one Reply action: on the quack, none on its reply
+      expect(screen.getAllByRole("button", { name: "Reply" })).toHaveLength(1)
+    })
+
+    it("offers no Reply action when nobody is signed in", () => {
+      render(<QuackList quacks={[quack()]} />)
+
+      expect(screen.queryByRole("button", { name: "Reply" })).not.toBeInTheDocument()
+    })
+
+    it("opens the reply form under the quack and closes it on Cancel", async () => {
+      render(
+        withClient(
+          <QuackList
+            currentUserId="u1"
+            quacks={[quack()]}
+          />,
+        ),
+      )
+
+      await userEvent.click(screen.getByRole("button", { name: "Reply" }))
+      expect(screen.getByLabelText("Your reply")).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+      expect(screen.queryByLabelText("Your reply")).not.toBeInTheDocument()
+    })
+
+    it("offers Delete on the user's own replies only, and a moderator on all", () => {
+      const quacks = [quack({ replies: [reply({ id: "r1", userId: "u1" }), reply({ id: "r2" })] })]
+      const { unmount } = render(
+        withClient(
+          <QuackList
+            currentUserId="u1"
+            quacks={quacks}
+          />,
+        ),
+      )
+      // Delete on the quack (own) and on reply r1 (own), not on r2
+      expect(screen.getAllByRole("button", { name: /delete/i })).toHaveLength(2)
+      unmount()
+
+      render(
+        withClient(
+          <QuackList
+            currentUserId="admin1"
+            isModerator
+            quacks={quacks}
+          />,
+        ),
+      )
+      expect(screen.getAllByRole("button", { name: /delete/i })).toHaveLength(3)
+    })
+
+    it("asks about a reply, not a quack, when deleting a reply", async () => {
+      render(
+        withClient(
+          <QuackList
+            currentUserId="u2"
+            quacks={[quack({ userId: "u1", replies: [reply({ userId: "u2" })] })]}
+          />,
+        ),
+      )
+
+      await userEvent.click(screen.getByRole("button", { name: /delete/i }))
+      expect(screen.getByText("Delete this reply?")).toBeInTheDocument()
+    })
+
+    it("tells the author that replies stay when deleting a quack that has some", async () => {
+      render(
+        withClient(
+          <QuackList
+            currentUserId="u1"
+            quacks={[quack({ replies: [reply({ id: "r1" }), reply({ id: "r2" })] })]}
+          />,
+        ),
+      )
+
+      await userEvent.click(screen.getByRole("button", { name: /delete/i }))
+      expect(screen.getByText(/2 replies stay/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("deleted quack placeholder", () => {
+    const placeholder = (overrides: Partial<Quack> = {}) =>
+      quack({
+        id: "q9",
+        text: null,
+        mood: null,
+        userId: null,
+        user: null,
+        deleted: true,
+        replies: [reply({ text: "still here" })],
+        ...overrides,
+      })
+
+    it("shows a note instead of the quack, and keeps the replies", () => {
+      render(<QuackList quacks={[placeholder()]} />)
+
+      expect(screen.getByText("This quack was deleted")).toBeInTheDocument()
+      expect(screen.getByText("still here")).toBeInTheDocument()
+    })
+
+    it("shows no author, mood or poll", () => {
+      render(<QuackList quacks={[placeholder()]} />)
+
+      expect(screen.queryByText("Caffeinated Duck")).not.toBeInTheDocument()
+      expect(screen.queryByRole("group")).not.toBeInTheDocument()
+    })
+
+    it("can still be replied to, but not deleted, even by a moderator", () => {
+      render(
+        withClient(
+          <QuackList
+            currentUserId="admin1"
+            isModerator
+            quacks={[placeholder({ replies: [] })]}
+          />,
+        ),
+      )
+
+      expect(screen.getByRole("button", { name: "Reply" })).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument()
+    })
   })
 })

@@ -28,14 +28,27 @@ export const pollSchema = z.object({
   myVoteOptionId: z.string().nullable(),
 })
 
-export const quackSchema = z.object({
+export const replySchema = z.object({
   id: z.string(),
   text: z.string(),
-  mood: quackMoodSchema.nullable(),
   userId: z.string(),
   createdAt: z.coerce.date(),
   user: quackUserSchema,
+})
+
+// A quack deleted by its author or an admin while it still has replies stays in
+// the feed as a placeholder: `deleted` is true and text, author and poll are null.
+export const quackSchema = z.object({
+  id: z.string(),
+  text: z.string().nullable(),
+  mood: quackMoodSchema.nullable(),
+  userId: z.string().nullable(),
+  createdAt: z.coerce.date(),
+  user: quackUserSchema.nullable(),
   poll: pollSchema.nullable(),
+  deleted: z.boolean(),
+  // oldest first
+  replies: z.array(replySchema),
 })
 
 export const quacksSchema = z.array(quackSchema)
@@ -43,4 +56,5 @@ export const quacksSchema = z.array(quackSchema)
 export type Poll = z.infer<typeof pollSchema>
 export type PollOption = z.infer<typeof pollOptionSchema>
 export type Quack = z.infer<typeof quackSchema>
+export type Reply = z.infer<typeof replySchema>
 export type QuackMood = z.infer<typeof quackMoodSchema>

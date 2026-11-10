@@ -2,7 +2,10 @@
 // The repository is mocked, so the test exercises the service in isolation.
 import { Poll } from '@/modules/quack/domain/poll';
 import { Quack } from '@/modules/quack/domain/quack';
-import { QuackRepository } from '@/modules/quack/repositories/quack.repository';
+import {
+  QuackRepository,
+  QuackTarget,
+} from '@/modules/quack/repositories/quack.repository';
 import { Identity } from '@/shared/auth/domain/identity';
 import {
   BadRequestException,
@@ -21,6 +24,9 @@ const aQuack = (overrides: Partial<Quack> = {}): Quack => ({
   updatedAt: new Date('2026-01-01T12:00:00Z'),
   user: { id: 'u1', name: 'Caffeinated Duck', username: 'CaffeinatedDuck' },
   poll: null,
+  parentId: null,
+  deleted: false,
+  replies: [],
   ...overrides,
 });
 
@@ -220,9 +226,16 @@ describe('QuacksService', () => {
   });
 
   describe('deleteQuack', () => {
+    const target = (overrides: Partial<QuackTarget> = {}): QuackTarget => ({
+      userId: 'u1',
+      parentId: null,
+      deleted: false,
+      ...overrides,
+    });
+
     it('deletes the quack of its author', async () => {
       const repository = mock<QuackRepository>();
-      repository.getAuthorId.mockResolvedValue('u1');
+      repository.getTarget.mockResolvedValue(target());
       const service = new QuacksService(repository);
 
       await service.deleteQuack(viewer, 'q1');
@@ -230,9 +243,19 @@ describe('QuacksService', () => {
       expect(repository.deleteQuack).toHaveBeenCalledWith('q1', 'u1');
     });
 
-    it("refuses to delete someone else's quack", async () => {
+    it('deletes a reply of its author', async () => {
       const repository = mock<QuackRepository>();
-      repository.getAuthorId.mockResolvedValue('u2');
+      repository.getTarget.mockResolvedValue(target({ parentId: 'q0' }));
+      const service = new QuacksService(repository);
+
+      await service.deleteQuack(viewer, 'r1');
+
+      expect(repository.deleteQuack).toHaveBeenCalledWith('r1', 'u1');
+    });
+
+    it("refuses to delete someone else's quack or reply", async () => {
+      const repository = mock<QuackRepository>();
+      repository.getTarget.mockResolvedValue(target({ userId: 'u2' }));
       const service = new QuacksService(repository);
 
       await expect(service.deleteQuack(viewer, 'q1')).rejects.toBeInstanceOf(
@@ -243,7 +266,7 @@ describe('QuacksService', () => {
 
     it("lets an admin delete someone else's quack", async () => {
       const repository = mock<QuackRepository>();
-      repository.getAuthorId.mockResolvedValue('u2');
+      repository.getTarget.mockResolvedValue(target({ userId: 'u2' }));
       const service = new QuacksService(repository);
       const admin = { id: 'admin1', role: 'admin' } as Identity;
 
@@ -254,12 +277,105 @@ describe('QuacksService', () => {
 
     it('reports a missing quack', async () => {
       const repository = mock<QuackRepository>();
-      repository.getAuthorId.mockResolvedValue(null);
+      repository.getTarget.mockResolvedValue(null);
       const service = new QuacksService(repository);
 
       await expect(service.deleteQuack(viewer, 'nope')).rejects.toBeInstanceOf(
         NotFoundException,
       );
+    });
+
+    it('answers 404 for a placeholder, even for an admin', async () => {
+      const repository = mock<QuackRepository>();
+      repository.getTarget.mockResolvedValue(
+        target({ userId: null, deleted: true }),
+      );
+      const service = new QuacksService(repository);
+      const admin = { id: 'admin1', role: 'admin' } as Identity;
+
+      await expect(service.deleteQuack(admin, 'q1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(repository.deleteQuack).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createReply', () => {
+    it('creates a reply owned by the signed-in user under a top-level quack', async () => {
+      const reply = aQuack({ id: 'r1', text: 'me too', parentId: 'q1' });
+      const repository = mock<QuackRepository>();
+      repository.getTarget.mockResolvedValue({
+        userId: 'u2',
+        parentId: null,
+        deleted: false,
+      });
+      repository.createReply.mockResolvedValue(reply);
+      const service = new QuacksService(repository);
+
+      await expect(service.createReply(viewer, 'q1', 'me too')).resolves.toBe(
+        reply,
+      );
+      // the author comes from the session, never from the caller
+      expect(repository.createReply).toHaveBeenCalledWith({
+        text: 'me too',
+        userId: 'u1',
+        parentId: 'q1',
+      });
+    });
+
+    it('allows replying to a placeholder', async () => {
+      const repository = mock<QuackRepository>();
+      repository.getTarget.mockResolvedValue({
+        userId: null,
+        parentId: null,
+        deleted: true,
+      });
+      repository.createReply.mockResolvedValue(aQuack({ parentId: 'q1' }));
+      const service = new QuacksService(repository);
+
+      await service.createReply(viewer, 'q1', 'still here');
+
+      expect(repository.createReply).toHaveBeenCalled();
+    });
+
+    it('refuses to reply to a reply', async () => {
+      const repository = mock<QuackRepository>();
+      repository.getTarget.mockResolvedValue({
+        userId: 'u2',
+        parentId: 'q0',
+        deleted: false,
+      });
+      const service = new QuacksService(repository);
+
+      await expect(
+        service.createReply(viewer, 'r1', 'nested'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.createReply).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 when the quack does not exist', async () => {
+      const repository = mock<QuackRepository>();
+      repository.getTarget.mockResolvedValue(null);
+      const service = new QuacksService(repository);
+
+      await expect(
+        service.createReply(viewer, 'nope', 'hello'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('answers 404 when the quack is purged while replying', async () => {
+      const repository = mock<QuackRepository>();
+      repository.getTarget.mockResolvedValue({
+        userId: null,
+        parentId: null,
+        deleted: true,
+      });
+      repository.createReply.mockResolvedValue(null);
+      const service = new QuacksService(repository);
+
+      await expect(
+        service.createReply(viewer, 'q1', 'too late'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

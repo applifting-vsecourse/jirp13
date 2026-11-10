@@ -16,9 +16,14 @@ import { useDeleteQuack } from "@/features/quack/hooks/useDeleteQuack"
 
 export function DeleteQuackButton({
   quackId,
+  kind = "quack",
+  replyCount = 0,
   isOwn = true,
 }: {
   quackId: string
+  kind?: "quack" | "reply"
+  // Replies under the quack. When there are some, they stay after the delete.
+  replyCount?: number
   // false when a moderator deletes someone else's quack
   isOwn?: boolean
 }) {
@@ -42,11 +47,14 @@ export function DeleteQuackButton({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete this quack?</DialogTitle>
+          <DialogTitle>Delete this {kind}?</DialogTitle>
           <DialogDescription>
             {isOwn
-              ? "It will be removed from the feed for everyone. This can't be undone."
-              : "This quack was posted by someone else. Deleting it removes it for everyone and can't be undone."}
+              ? `It will be removed for everyone. This can't be undone.`
+              : `This ${kind} was posted by someone else. Deleting it removes it for everyone and can't be undone.`}
+            {replyCount > 0
+              ? ` Its ${replyCount === 1 ? "reply stays" : `${replyCount} replies stay`} under a "This quack was deleted" note.`
+              : ""}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
