@@ -14,6 +14,8 @@ The worked example is the quack feed: `Quack` model → seed → repository → 
 - `pnpm dev` — everything: env files, Postgres (Docker), migrate, seed, both dev servers
 - `pnpm check-all` — lint + type-check + tests + build (same as CI)
 - `pnpm backend test` / `pnpm frontend test:ci` — unit tests
+- `pnpm backend test:int` — API integration tests (`*.int-spec.ts`) against the `quacker_test` database in Docker Postgres; `TEST_DATABASE_URL` overrides the address
+- `pnpm frontend test:e2e` — Playwright tests; needs the running, seeded app
 - `pnpm backend prisma:migrations:run` — create/apply migrations after schema changes
 
 ## Conventions
