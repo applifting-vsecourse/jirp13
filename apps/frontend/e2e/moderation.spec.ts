@@ -80,10 +80,13 @@ test.describe("deleting quacks", () => {
     await admin.goto("/quacks")
     const card = quackCard(admin, text)
     await expect(card).toBeVisible()
-    // the admin sees Delete on every quack in the feed, not only this one
+    // the admin sees Delete on every quack and reply in the feed, not only this one;
+    // the placeholder of a deleted quack cannot be deleted again
     const articles = admin.locator("article")
+    const liveQuacks = articles.filter({ hasNotText: "This quack was deleted" })
+    const replies = articles.getByRole("list", { name: "Replies" }).getByRole("listitem")
     await expect(articles.getByRole("button", { name: "Delete" })).toHaveCount(
-      await articles.count(),
+      (await liveQuacks.count()) + (await replies.count()),
     )
     await card.getByRole("button", { name: "Delete" }).click()
     await expect(admin.getByRole("dialog").getByText(/posted by someone else/i)).toBeVisible()
